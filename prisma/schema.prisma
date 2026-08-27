@@ -1,0 +1,486 @@
+// RentMyCar domain model — managed car rental platform (MVP)
+// Money fields are integer minor units (cents) for the launch currency.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Role {
+  OWNER
+  RENTER
+  OPS
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  FLAGGED
+  BANNED
+}
+
+enum AccountKind {
+  INDIVIDUAL
+  COMPANY
+}
+
+enum ContractType {
+  REVENUE_SHARE
+  FIXED_LEASE
+  HYBRID
+}
+
+enum VehicleStatus {
+  DRAFT
+  PENDING_REVIEW
+  REJECTED
+  LIVE
+  PAUSED
+  BOOKED
+  MAINTENANCE
+  CLAIM
+  WITHDRAWN
+}
+
+enum VehicleLocation {
+  WITH_OWNER
+  DEPOT
+  WITH_CLIENT
+  WITH_VALET
+  WORKSHOP
+}
+
+enum Transmission {
+  AUTOMATIC
+  MANUAL
+}
+
+enum FuelType {
+  PETROL
+  DIESEL
+  HYBRID
+  ELECTRIC
+}
+
+enum DocumentType {
+  REGISTRATION
+  OWNERSHIP_PROOF
+  FITNESS
+  INSURANCE
+  OTHER
+}
+
+enum DocumentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum BookingStatus {
+  PENDING_CONFIRMATION
+  DECLINED
+  EXPIRED
+  CONFIRMED
+  ACTIVE
+  RETURNED
+  COMPLETED
+  CANCELLED
+  CLAIM
+}
+
+enum ChecklistType {
+  PICKUP
+  RETURN
+}
+
+enum PhotoKind {
+  EXTERIOR_FRONT
+  EXTERIOR_BACK
+  EXTERIOR_LEFT
+  EXTERIOR_RIGHT
+  INTERIOR
+  ODOMETER
+  FUEL
+  DAMAGE
+  OTHER
+}
+
+enum PaymentKind {
+  TRIP
+  DEPOSIT
+  EXTRA_CHARGE
+  REFUND
+  GOODWILL
+}
+
+enum PaymentStatus {
+  REQUIRES_ACTION
+  AUTHORIZED
+  CAPTURED
+  RELEASED
+  FAILED
+  CANCELLED
+}
+
+enum LedgerType {
+  TRIP_GROSS
+  PLATFORM_FEE
+  OWNER_SHARE
+  DEPOSIT_HOLD
+  DEPOSIT_CAPTURE
+  DEPOSIT_RELEASE
+  EXTRA_CHARGE
+  REFUND
+  GOODWILL
+  PAYOUT
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+}
+
+enum ClaimStatus {
+  OPEN
+  UNDER_REVIEW
+  APPROVED
+  DENIED
+  SETTLED
+  CLOSED
+}
+
+enum TicketStatus {
+  OPEN
+  PENDING_USER
+  RESOLVED
+  CLOSED
+}
+
+enum TicketPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+model User {
+  id                   String      @id @default(cuid())
+  email                String      @unique
+  name                 String?
+  passwordHash         String?
+  role                 Role
+  accountKind          AccountKind @default(INDIVIDUAL)
+  companyName          String?
+  companyRegistration  String?
+  status               UserStatus  @default(ACTIVE)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+
+  ownerProfile  OwnerProfile?
+  renterProfile RenterProfile?
+
+  bookingsAsRenter Booking[]       @relation("RenterBookings")
+  assignedBookings Booking[]       @relation("OpsAssignedBookings")
+  supportTickets   SupportTicket[] @relation("TicketRequester")
+  assignedTickets  SupportTicket[] @relation("TicketAssignee")
+  ticketMessages   TicketMessage[]
+  auditLogs        AuditLog[]
+  payoutsCreated   PayoutBatch[]   @relation("PayoutBatchCreator")
+}
+
+model OwnerProfile {
+  id                String       @id @default(cuid())
+  userId            String       @unique
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phone             String?
+  payoutMethodHint  String?
+  bankAccountLast4  String?
+  contractType      ContractType @default(REVENUE_SHARE)
+  ownerShareBps     Int          @default(7000) // 70.00%
+  onboardingDone    Boolean      @default(false)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  vehicles Vehicle[]
+  payouts  Payout[]
+}
+
+model RenterProfile {
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phone            String?
+  dateOfBirth      DateTime?
+  licenseNumber    String?
+  licenseCountry   String?
+  licenseImageUrl  String?
+  verifiedAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+}
+
+model Vehicle {
+  id             String          @id @default(cuid())
+  ownerId        String
+  owner          OwnerProfile    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  status         VehicleStatus   @default(DRAFT)
+  location       VehicleLocation @default(WITH_OWNER)
+  make           String
+  model          String
+  year           Int
+  plate          String
+  vin            String?
+  category       String
+  seats          Int             @default(5)
+  transmission   Transmission    @default(AUTOMATIC)
+  fuelType       FuelType        @default(PETROL)
+  featuresJson   String          @default("[]")
+  dailyRateCents Int
+  mileageCapKm   Int?
+  maxTripDays    Int?
+  city           String
+  rejectionNote  String?
+  pauseReason    String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  photos     VehiclePhoto[]
+  documents  VehicleDocument[]
+  blocks     VehicleBlock[]
+  bookings   Booking[]
+  claims     Claim[]
+}
+
+model VehiclePhoto {
+  id        String   @id @default(cuid())
+  vehicleId String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  url       String
+  sortOrder Int      @default(0)
+  isCover   Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model VehicleDocument {
+  id           String         @id @default(cuid())
+  vehicleId    String
+  vehicle      Vehicle        @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  type         DocumentType
+  url          String
+  status       DocumentStatus @default(PENDING)
+  reviewNote   String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model VehicleBlock {
+  id        String   @id @default(cuid())
+  vehicleId String
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  startDate DateTime
+  endDate   DateTime
+  reason    String?
+  createdAt DateTime @default(now())
+}
+
+model Booking {
+  id                 String        @id @default(cuid())
+  code               String        @unique
+  status             BookingStatus @default(PENDING_CONFIRMATION)
+  vehicleId          String
+  vehicle            Vehicle       @relation(fields: [vehicleId], references: [id])
+  renterId           String
+  renter             User          @relation("RenterBookings", fields: [renterId], references: [id])
+  assignedOpsId      String?
+  assignedOps        User?         @relation("OpsAssignedBookings", fields: [assignedOpsId], references: [id])
+  startAt            DateTime
+  endAt              DateTime
+  softHoldExpiresAt  DateTime?
+  dailyRateCents     Int
+  days               Int
+  baseCents          Int
+  feesCents          Int           @default(0)
+  taxCents           Int           @default(0)
+  totalCents         Int
+  depositCents       Int
+  ownerShareBps      Int
+  platformFeeBps     Int
+  pickupInstructions String?
+  returnInstructions String?
+  cancelReason       String?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  addons     BookingAddon[]
+  checklists TripChecklist[]
+  payments   Payment[]
+  ledger     LedgerEntry[]
+  claim      Claim?
+  tickets    SupportTicket[]
+}
+
+model BookingAddon {
+  id          String  @id @default(cuid())
+  bookingId   String
+  booking     Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  code        String
+  label       String
+  amountCents Int
+}
+
+model TripChecklist {
+  id           String        @id @default(cuid())
+  bookingId    String
+  booking      Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  type         ChecklistType
+  odometerKm   Int?
+  fuelLevel    Int?
+  notes        String?
+  submittedAt  DateTime?
+  createdAt    DateTime      @default(now())
+
+  photos TripPhoto[]
+
+  @@unique([bookingId, type])
+}
+
+model TripPhoto {
+  id          String        @id @default(cuid())
+  checklistId String
+  checklist   TripChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  kind        PhotoKind
+  url         String
+  createdAt   DateTime      @default(now())
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  bookingId         String
+  booking           Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  kind              PaymentKind
+  status            PaymentStatus @default(REQUIRES_ACTION)
+  amountCents       Int
+  currency          String        @default("USD")
+  provider          String        @default("mock")
+  providerRef       String?
+  failureReason     String?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+}
+
+model LedgerEntry {
+  id           String     @id @default(cuid())
+  bookingId    String?
+  booking      Booking?   @relation(fields: [bookingId], references: [id])
+  ownerId      String?
+  payoutId     String?
+  payout       Payout?    @relation(fields: [payoutId], references: [id])
+  type         LedgerType
+  amountCents  Int
+  currency     String     @default("USD")
+  description  String?
+  createdAt    DateTime   @default(now())
+}
+
+model PayoutBatch {
+  id          String       @id @default(cuid())
+  status      PayoutStatus @default(PENDING)
+  createdById String?
+  createdBy   User?        @relation("PayoutBatchCreator", fields: [createdById], references: [id])
+  paidAt      DateTime?
+  notes       String?
+  createdAt   DateTime     @default(now())
+
+  payouts Payout[]
+}
+
+model Payout {
+  id          String       @id @default(cuid())
+  batchId     String?
+  batch       PayoutBatch? @relation(fields: [batchId], references: [id])
+  ownerId     String
+  owner       OwnerProfile @relation(fields: [ownerId], references: [id])
+  amountCents Int
+  currency    String       @default("USD")
+  status      PayoutStatus @default(PENDING)
+  paidAt      DateTime?
+  createdAt   DateTime     @default(now())
+
+  ledgerEntries LedgerEntry[]
+}
+
+model Claim {
+  id            String      @id @default(cuid())
+  bookingId     String      @unique
+  booking       Booking     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  vehicleId     String
+  vehicle       Vehicle     @relation(fields: [vehicleId], references: [id])
+  status        ClaimStatus @default(OPEN)
+  summary       String
+  evidenceUrls  String      @default("[]")
+  estimateCents Int?
+  policeReport  Boolean     @default(false)
+  resolution    String?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+}
+
+model SupportTicket {
+  id          String         @id @default(cuid())
+  bookingId   String?
+  booking     Booking?       @relation(fields: [bookingId], references: [id])
+  requesterId String
+  requester   User           @relation("TicketRequester", fields: [requesterId], references: [id])
+  assigneeId  String?
+  assignee    User?          @relation("TicketAssignee", fields: [assigneeId], references: [id])
+  subject     String
+  status      TicketStatus   @default(OPEN)
+  priority    TicketPriority @default(NORMAL)
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+
+  messages TicketMessage[]
+}
+
+model TicketMessage {
+  id        String        @id @default(cuid())
+  ticketId  String
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User          @relation(fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime      @default(now())
+}
+
+model FeeConfig {
+  id                      String   @id @default(cuid())
+  city                    String   @unique
+  currency                String   @default("USD")
+  ownerShareBps           Int      @default(7000)
+  platformFeeBps          Int      @default(3000)
+  defaultDepositCents     Int      @default(50000)
+  minRenterAge            Int      @default(21)
+  softHoldHours           Int      @default(2)
+  cancelFullRefundHours   Int      @default(48)
+  payoutHoldHours         Int      @default(48)
+  updatedAt               DateTime @updatedAt
+  createdAt               DateTime @default(now())
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id])
+  action     String
+  entityType String
+  entityId   String
+  metaJson   String   @default("{}")
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+}

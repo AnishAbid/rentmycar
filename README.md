@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# RentMyCar
 
-## Getting Started
+Managed car rental platform: owners supply vehicles; the platform handles client dealings, fleet operations, deposits, and payouts.
 
-First, run the development server:
+## Docs
+
+- [Product decisions](docs/DECISIONS.md) — market defaults & revenue share
+- [MVP PRD](docs/PRD.md) — personas, user stories, flows
+- [MVP backlog](docs/MVP_BACKLOG.md) — build slices & screen map
+
+## Stack
+
+- Next.js 15 (App Router) + TypeScript + Tailwind
+- Prisma + SQLite (swap `DATABASE_URL` to Postgres for production)
+- Domain helpers in `src/lib/domain` (pricing, cancellation, audit stub)
+- Mock payment provider in `src/lib/payments`
+
+## Roles & routes
+
+| Role | Entry |
+|------|--------|
+| Public | `/`, `/search`, `/cars/[id]` |
+| Owner | `/owner` |
+| Renter | `/renter/bookings` |
+| Ops | `/ops` |
+| Admin | `/admin/settings` |
+
+## Setup
 
 ```bash
+npm install
+cp .env.example .env   # if needed; .env already has sqlite URL
+npm run db:migrate
+npm run db:seed
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Scripts
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Script | Purpose |
+|--------|---------|
+| `npm run dev` | Next.js dev server |
+| `npm run build` | Production build |
+| `npm run db:migrate` | Apply Prisma migrations |
+| `npm run db:seed` | Seed fee config + demo users |
+| `npm run db:studio` | Prisma Studio |
+| `npm run test:domain` | Domain money helper checks |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Try the forms
 
-## Learn More
+```bash
+npm run db:seed
+npm run dev
+```
 
-To learn more about Next.js, take a look at the following resources:
+Demo logins (password: `password`):
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Email | Role |
+|-------|------|
+| owner@demo.local | Owner |
+| renter@demo.local | Renter |
+| ops@demo.local | Ops |
+| admin@demo.local | Admin |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Flow: owner onboarding → add vehicle → ops approve → renter verify → search/book → ops confirm → pickup/return checklists → ops inspect → payouts.
