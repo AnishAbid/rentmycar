@@ -4,11 +4,13 @@
   "private": true,
   "scripts": {
     "dev": "next dev --turbopack",
-    "build": "next build --turbopack",
+    "build": "prisma generate && prisma db push && npm run db:seed && next build --turbopack",
+    "vercel-build": "npm run build",
     "start": "next start",
     "lint": "eslint",
     "db:push": "prisma db push",
     "db:seed": "tsx prisma/seed.ts",
+    "db:deploy": "prisma generate && prisma db push && npm run db:seed",
     "db:studio": "prisma studio",
     "db:generate": "prisma generate",
     "test:domain": "tsx scripts/test-domain.ts",
@@ -20,8 +22,10 @@
     "date-fns": "^4.4.0",
     "dotenv": "^17.4.2",
     "next": "15.5.23",
+    "prisma": "^6.19.0",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "tsx": "^4.23.11",
     "zod": "^4.4.3"
   },
   "devDependencies": {
@@ -33,9 +37,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "15.5.23",
-    "prisma": "^6.19.0",
     "tailwindcss": "^4",
-    "tsx": "^4.23.11",
     "typescript": "^5"
   },
   "prisma": {
