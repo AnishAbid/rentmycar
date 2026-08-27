@@ -11,28 +11,28 @@ Managed car rental platform: owners supply vehicles; the platform handles client
 ## Stack
 
 - Next.js 15 (App Router) + TypeScript + Tailwind
-- Prisma + SQLite (swap `DATABASE_URL` to Postgres for production)
-- Domain helpers in `src/lib/domain` (pricing, cancellation, audit stub)
+- **Prisma ORM 6.x + MongoDB** (Prisma 7 has no MongoDB connector)
+- Domain helpers in `src/lib/domain`
 - Mock payment provider in `src/lib/payments`
-
-## Roles & routes
-
-| Role | Entry |
-|------|--------|
-| Public | `/`, `/search`, `/cars/[id]` |
-| Owner | `/owner` |
-| Renter | `/renter/bookings` |
-| Ops | `/ops` |
-| Admin | `/admin/settings` |
 
 ## Setup
 
 ```bash
+# 1) Start MongoDB replica set (needed for $transaction)
+docker compose up -d
+
+# 2) Install & sync schema
 npm install
-cp .env.example .env   # if needed; .env already has sqlite URL
-npm run db:migrate
+cp .env.example .env   # or edit DATABASE_URL for Atlas
+npm run db:push
 npm run db:seed
 npm run dev
+```
+
+Atlas example:
+
+```env
+DATABASE_URL="mongodb+srv://USER:PASS@cluster.mongodb.net/rentmycar?retryWrites=true&w=majority"
 ```
 
 ## Scripts
@@ -40,18 +40,12 @@ npm run dev
 | Script | Purpose |
 |--------|---------|
 | `npm run dev` | Next.js dev server |
-| `npm run build` | Production build |
-| `npm run db:migrate` | Apply Prisma migrations |
+| `npm run db:push` | Sync Prisma schema indexes to MongoDB (no migrate) |
 | `npm run db:seed` | Seed fee config + demo users |
 | `npm run db:studio` | Prisma Studio |
 | `npm run test:domain` | Domain money helper checks |
 
 ## Try the forms
-
-```bash
-npm run db:seed
-npm run dev
-```
 
 Demo logins (password: `password`):
 
@@ -63,3 +57,13 @@ Demo logins (password: `password`):
 | admin@demo.local | Admin |
 
 Flow: owner onboarding → add vehicle → ops approve → renter verify → search/book → ops confirm → pickup/return checklists → ops inspect → payouts.
+
+## Roles & routes
+
+| Role | Entry |
+|------|--------|
+| Public | `/`, `/search`, `/cars/[id]` |
+| Owner | `/owner` |
+| Renter | `/renter/bookings` |
+| Ops | `/ops` |
+| Admin | `/admin/settings` |

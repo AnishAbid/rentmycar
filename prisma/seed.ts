@@ -1,24 +1,8 @@
 import "dotenv/config";
-import fs from "node:fs";
-import path from "node:path";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { AccountKind, PrismaClient, Role } from "@prisma/client";
 import { launchConfig } from "../src/config/launch";
 
-function resolveSqliteUrl() {
-  const url = process.env.DATABASE_URL ?? "file:./dev.db";
-  const relative = url.replace(/^file:/, "");
-  const candidates = [
-    path.resolve(process.cwd(), relative),
-    path.resolve(process.cwd(), "prisma", path.basename(relative)),
-  ];
-  const filePath = candidates.find((p) => fs.existsSync(p)) ?? candidates[0];
-  return `file:${filePath}`;
-}
-
-const prisma = new PrismaClient({
-  adapter: new PrismaBetterSqlite3({ url: resolveSqliteUrl() }),
-});
+const prisma = new PrismaClient();
 
 async function main() {
   await prisma.feeConfig.upsert({

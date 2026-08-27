@@ -1,12 +1,14 @@
-// RentMyCar domain model — managed car rental platform (MVP)
+// RentMyCar domain model — MongoDB via Prisma ORM 6.x
 // Money fields are integer minor units (cents) for the launch currency.
+// Note: Prisma 7 has no MongoDB connector — stay on latest 6.x.
 
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
 }
 
 enum Role {
@@ -169,17 +171,17 @@ enum TicketPriority {
 }
 
 model User {
-  id                   String      @id @default(cuid())
-  email                String      @unique
-  name                 String?
-  passwordHash         String?
-  role                 Role
-  accountKind          AccountKind @default(INDIVIDUAL)
-  companyName          String?
-  companyRegistration  String?
-  status               UserStatus  @default(ACTIVE)
-  createdAt            DateTime    @default(now())
-  updatedAt            DateTime    @updatedAt
+  id                  String      @id @default(auto()) @map("_id") @db.ObjectId
+  email               String      @unique
+  name                String?
+  passwordHash        String?
+  role                Role
+  accountKind         AccountKind @default(INDIVIDUAL)
+  companyName         String?
+  companyRegistration String?
+  status              UserStatus  @default(ACTIVE)
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
 
   ownerProfile  OwnerProfile?
   renterProfile RenterProfile?
@@ -194,40 +196,40 @@ model User {
 }
 
 model OwnerProfile {
-  id                String       @id @default(cuid())
-  userId            String       @unique
-  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  phone             String?
-  payoutMethodHint  String?
-  bankAccountLast4  String?
-  contractType      ContractType @default(REVENUE_SHARE)
-  ownerShareBps     Int          @default(7000) // 70.00%
-  onboardingDone    Boolean      @default(false)
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
+  id               String       @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String       @unique @db.ObjectId
+  user             User         @relation(fields: [userId], references: [id])
+  phone            String?
+  payoutMethodHint String?
+  bankAccountLast4 String?
+  contractType     ContractType @default(REVENUE_SHARE)
+  ownerShareBps    Int          @default(7000)
+  onboardingDone   Boolean      @default(false)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
 
   vehicles Vehicle[]
   payouts  Payout[]
 }
 
 model RenterProfile {
-  id               String    @id @default(cuid())
-  userId           String    @unique
-  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  phone            String?
-  dateOfBirth      DateTime?
-  licenseNumber    String?
-  licenseCountry   String?
-  licenseImageUrl  String?
-  verifiedAt       DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id              String    @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String    @unique @db.ObjectId
+  user            User      @relation(fields: [userId], references: [id])
+  phone           String?
+  dateOfBirth     DateTime?
+  licenseNumber   String?
+  licenseCountry  String?
+  licenseImageUrl String?
+  verifiedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }
 
 model Vehicle {
-  id             String          @id @default(cuid())
-  ownerId        String
-  owner          OwnerProfile    @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  id             String          @id @default(auto()) @map("_id") @db.ObjectId
+  ownerId        String          @db.ObjectId
+  owner          OwnerProfile    @relation(fields: [ownerId], references: [id])
   status         VehicleStatus   @default(DRAFT)
   location       VehicleLocation @default(WITH_OWNER)
   make           String
@@ -249,17 +251,17 @@ model Vehicle {
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
-  photos     VehiclePhoto[]
-  documents  VehicleDocument[]
-  blocks     VehicleBlock[]
-  bookings   Booking[]
-  claims     Claim[]
+  photos    VehiclePhoto[]
+  documents VehicleDocument[]
+  blocks    VehicleBlock[]
+  bookings  Booking[]
+  claims    Claim[]
 }
 
 model VehiclePhoto {
-  id        String   @id @default(cuid())
-  vehicleId String
-  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  vehicleId String   @db.ObjectId
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id])
   url       String
   sortOrder Int      @default(0)
   isCover   Boolean  @default(false)
@@ -267,21 +269,21 @@ model VehiclePhoto {
 }
 
 model VehicleDocument {
-  id           String         @id @default(cuid())
-  vehicleId    String
-  vehicle      Vehicle        @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
-  type         DocumentType
-  url          String
-  status       DocumentStatus @default(PENDING)
-  reviewNote   String?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  id         String         @id @default(auto()) @map("_id") @db.ObjectId
+  vehicleId  String         @db.ObjectId
+  vehicle    Vehicle        @relation(fields: [vehicleId], references: [id])
+  type       DocumentType
+  url        String
+  status     DocumentStatus @default(PENDING)
+  reviewNote String?
+  createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
 }
 
 model VehicleBlock {
-  id        String   @id @default(cuid())
-  vehicleId String
-  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Cascade)
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  vehicleId String   @db.ObjectId
+  vehicle   Vehicle  @relation(fields: [vehicleId], references: [id])
   startDate DateTime
   endDate   DateTime
   reason    String?
@@ -289,14 +291,14 @@ model VehicleBlock {
 }
 
 model Booking {
-  id                 String        @id @default(cuid())
+  id                 String        @id @default(auto()) @map("_id") @db.ObjectId
   code               String        @unique
   status             BookingStatus @default(PENDING_CONFIRMATION)
-  vehicleId          String
+  vehicleId          String        @db.ObjectId
   vehicle            Vehicle       @relation(fields: [vehicleId], references: [id])
-  renterId           String
+  renterId           String        @db.ObjectId
   renter             User          @relation("RenterBookings", fields: [renterId], references: [id])
-  assignedOpsId      String?
+  assignedOpsId      String?       @db.ObjectId
   assignedOps        User?         @relation("OpsAssignedBookings", fields: [assignedOpsId], references: [id])
   startAt            DateTime
   endAt              DateTime
@@ -325,24 +327,24 @@ model Booking {
 }
 
 model BookingAddon {
-  id          String  @id @default(cuid())
-  bookingId   String
-  booking     Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  id          String  @id @default(auto()) @map("_id") @db.ObjectId
+  bookingId   String  @db.ObjectId
+  booking     Booking @relation(fields: [bookingId], references: [id])
   code        String
   label       String
   amountCents Int
 }
 
 model TripChecklist {
-  id           String        @id @default(cuid())
-  bookingId    String
-  booking      Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  type         ChecklistType
-  odometerKm   Int?
-  fuelLevel    Int?
-  notes        String?
-  submittedAt  DateTime?
-  createdAt    DateTime      @default(now())
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  bookingId   String        @db.ObjectId
+  booking     Booking       @relation(fields: [bookingId], references: [id])
+  type        ChecklistType
+  odometerKm  Int?
+  fuelLevel   Int?
+  notes       String?
+  submittedAt DateTime?
+  createdAt   DateTime      @default(now())
 
   photos TripPhoto[]
 
@@ -350,47 +352,47 @@ model TripChecklist {
 }
 
 model TripPhoto {
-  id          String        @id @default(cuid())
-  checklistId String
-  checklist   TripChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  id          String        @id @default(auto()) @map("_id") @db.ObjectId
+  checklistId String        @db.ObjectId
+  checklist   TripChecklist @relation(fields: [checklistId], references: [id])
   kind        PhotoKind
   url         String
   createdAt   DateTime      @default(now())
 }
 
 model Payment {
-  id                String        @id @default(cuid())
-  bookingId         String
-  booking           Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  kind              PaymentKind
-  status            PaymentStatus @default(REQUIRES_ACTION)
-  amountCents       Int
-  currency          String        @default("USD")
-  provider          String        @default("mock")
-  providerRef       String?
-  failureReason     String?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  id            String        @id @default(auto()) @map("_id") @db.ObjectId
+  bookingId     String        @db.ObjectId
+  booking       Booking       @relation(fields: [bookingId], references: [id])
+  kind          PaymentKind
+  status        PaymentStatus @default(REQUIRES_ACTION)
+  amountCents   Int
+  currency      String        @default("USD")
+  provider      String        @default("mock")
+  providerRef   String?
+  failureReason String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 }
 
 model LedgerEntry {
-  id           String     @id @default(cuid())
-  bookingId    String?
-  booking      Booking?   @relation(fields: [bookingId], references: [id])
-  ownerId      String?
-  payoutId     String?
-  payout       Payout?    @relation(fields: [payoutId], references: [id])
-  type         LedgerType
-  amountCents  Int
-  currency     String     @default("USD")
-  description  String?
-  createdAt    DateTime   @default(now())
+  id          String     @id @default(auto()) @map("_id") @db.ObjectId
+  bookingId   String?    @db.ObjectId
+  booking     Booking?   @relation(fields: [bookingId], references: [id])
+  ownerId     String?    @db.ObjectId
+  payoutId    String?    @db.ObjectId
+  payout      Payout?    @relation(fields: [payoutId], references: [id])
+  type        LedgerType
+  amountCents Int
+  currency    String     @default("USD")
+  description String?
+  createdAt   DateTime   @default(now())
 }
 
 model PayoutBatch {
-  id          String       @id @default(cuid())
+  id          String       @id @default(auto()) @map("_id") @db.ObjectId
   status      PayoutStatus @default(PENDING)
-  createdById String?
+  createdById String?      @db.ObjectId
   createdBy   User?        @relation("PayoutBatchCreator", fields: [createdById], references: [id])
   paidAt      DateTime?
   notes       String?
@@ -400,10 +402,10 @@ model PayoutBatch {
 }
 
 model Payout {
-  id          String       @id @default(cuid())
-  batchId     String?
+  id          String       @id @default(auto()) @map("_id") @db.ObjectId
+  batchId     String?      @db.ObjectId
   batch       PayoutBatch? @relation(fields: [batchId], references: [id])
-  ownerId     String
+  ownerId     String       @db.ObjectId
   owner       OwnerProfile @relation(fields: [ownerId], references: [id])
   amountCents Int
   currency    String       @default("USD")
@@ -415,10 +417,10 @@ model Payout {
 }
 
 model Claim {
-  id            String      @id @default(cuid())
-  bookingId     String      @unique
-  booking       Booking     @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  vehicleId     String
+  id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  bookingId     String      @unique @db.ObjectId
+  booking       Booking     @relation(fields: [bookingId], references: [id])
+  vehicleId     String      @db.ObjectId
   vehicle       Vehicle     @relation(fields: [vehicleId], references: [id])
   status        ClaimStatus @default(OPEN)
   summary       String
@@ -431,12 +433,12 @@ model Claim {
 }
 
 model SupportTicket {
-  id          String         @id @default(cuid())
-  bookingId   String?
+  id          String         @id @default(auto()) @map("_id") @db.ObjectId
+  bookingId   String?        @db.ObjectId
   booking     Booking?       @relation(fields: [bookingId], references: [id])
-  requesterId String
+  requesterId String         @db.ObjectId
   requester   User           @relation("TicketRequester", fields: [requesterId], references: [id])
-  assigneeId  String?
+  assigneeId  String?        @db.ObjectId
   assignee    User?          @relation("TicketAssignee", fields: [assigneeId], references: [id])
   subject     String
   status      TicketStatus   @default(OPEN)
@@ -448,33 +450,33 @@ model SupportTicket {
 }
 
 model TicketMessage {
-  id        String        @id @default(cuid())
-  ticketId  String
-  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
-  authorId  String
+  id        String        @id @default(auto()) @map("_id") @db.ObjectId
+  ticketId  String        @db.ObjectId
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id])
+  authorId  String        @db.ObjectId
   author    User          @relation(fields: [authorId], references: [id])
   body      String
   createdAt DateTime      @default(now())
 }
 
 model FeeConfig {
-  id                      String   @id @default(cuid())
-  city                    String   @unique
-  currency                String   @default("USD")
-  ownerShareBps           Int      @default(7000)
-  platformFeeBps          Int      @default(3000)
-  defaultDepositCents     Int      @default(50000)
-  minRenterAge            Int      @default(21)
-  softHoldHours           Int      @default(2)
-  cancelFullRefundHours   Int      @default(48)
-  payoutHoldHours         Int      @default(48)
-  updatedAt               DateTime @updatedAt
-  createdAt               DateTime @default(now())
+  id                    String   @id @default(auto()) @map("_id") @db.ObjectId
+  city                  String   @unique
+  currency              String   @default("USD")
+  ownerShareBps         Int      @default(7000)
+  platformFeeBps        Int      @default(3000)
+  defaultDepositCents   Int      @default(50000)
+  minRenterAge          Int      @default(21)
+  softHoldHours         Int      @default(2)
+  cancelFullRefundHours Int      @default(48)
+  payoutHoldHours       Int      @default(48)
+  updatedAt             DateTime @updatedAt
+  createdAt             DateTime @default(now())
 }
 
 model AuditLog {
-  id         String   @id @default(cuid())
-  actorId    String?
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  actorId    String?  @db.ObjectId
   actor      User?    @relation(fields: [actorId], references: [id])
   action     String
   entityType String
