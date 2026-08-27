@@ -44,13 +44,15 @@ MongoDB has **no Prisma migrate** — on each Vercel build the app runs:
 3. `npm run db:seed` (idempotent upserts)
 4. `next build`
 
-Set this env var in the Vercel project (Production + Preview):
+Set these env vars in the Vercel project (Production + Preview):
 
 | Name | Value |
 |------|--------|
-| `DATABASE_URL` | Your Atlas `mongodb+srv://...` connection string |
+| `DATABASE_URL` | Atlas URI ending with `?retryWrites=true&w=majority` |
 
-Seed uses upserts, so re-running on every deploy is safe for demo users/fee config.
+**Required Atlas setting for Vercel:** Network Access → Add IP Address → **Allow Access from Anywhere** (`0.0.0.0/0`). Vercel serverless has no fixed IPs; without this you get `Server selection timeout` / TLS `InternalError`.
+
+Also use the same `DATABASE_URL` in Vercel as locally (Production env), then Redeploy.
 
 ## Scripts
 

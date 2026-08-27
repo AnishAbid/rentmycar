@@ -5,7 +5,12 @@ import { formatMoney } from "@/lib/domain/money";
 import { prisma } from "@/lib/db";
 
 export default async function HomePage() {
-  const liveCount = await prisma.vehicle.count({ where: { status: "LIVE" } });
+  let liveCount = 0;
+  try {
+    liveCount = await prisma.vehicle.count({ where: { status: "LIVE" } });
+  } catch (error) {
+    console.error("[home] vehicle.count failed", error);
+  }
 
   return (
     <div className="min-h-screen">
